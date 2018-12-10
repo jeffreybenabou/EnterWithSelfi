@@ -1,0 +1,27 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "rekognition:DetectLabels",
+                "rekognition:StartFaceSearch",
+                "rekognition:DetectFaces",
+                "rekognition:DetectModerationLabels",
+                "rekognition:IndexFaces",
+                "rekognition:GetFaceDetection",
+                "rekognition:StartLabelDetection",
+                "rekognition:CompareFaces",
+                "rekognition:GetLabelDetection",
+                "rekognition:ListFaces",
+                "rekognition:StartFaceDetection",
+                "rekognition:GetFaceSearch",
+                "rekognition:SearchFaces",
+                "rekognition:DeleteFaces",
+                "rekognition:SearchFacesByImage"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
