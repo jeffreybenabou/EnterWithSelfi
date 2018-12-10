@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ImageButton imageButton;
     private Bitmap bitmap;
-    private boolean face=false,id=false;
+    private boolean id=false;
     private com.amazonaws.services.rekognition.model.Image getAmazonRekognitionImage=new com.amazonaws.services.rekognition.model.Image();
     private  DetectLabelsResult labelsResult;
     public static Uri uri;
@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
                 checkConfidenceForIdAndFace();
 
 
-                if (face && id) {
+                if ( id) {
                     galleryAddPic();
                     popToast("תמונה תקינה");
                     saveTheUri();
@@ -163,12 +163,10 @@ public class MainActivity extends AppCompatActivity {
     private void checkConfidenceForIdAndFace() {
         try
         {
-            for (int i = 0; i < labelsResult.getLabels().size(); i++) {
-                if (labelsResult.getLabels().get(i).getName().contains("Id Cards") && labelsResult.getLabels().get(i).getConfidence() > 90)
-                    id = true;
-                else if (labelsResult.getLabels().get(i).getName().contains("Human") && labelsResult.getLabels().get(i).getConfidence() > 90)
-                    face = true;
 
+            for (int i = 0; i < labelsResult.getLabels().size(); i++) {
+                if (labelsResult.getLabels().get(i).getName().contains("Id Cards")||labelsResult.getLabels().get(i).getName().contains("Driving License") && labelsResult.getLabels().get(i).getConfidence() > 85)
+                    id = true;
             }
         }catch (Exception e)
         {

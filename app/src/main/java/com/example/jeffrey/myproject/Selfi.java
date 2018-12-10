@@ -138,13 +138,15 @@ public class Selfi extends AppCompatActivity {
                 );
 
                 CompareFacesRequest compareFacesRequest = new CompareFacesRequest();
+                System.out.println(idImage);
+                System.out.println(selfiImage);
                 compareFacesRequest.setSourceImage(idImage);
                 compareFacesRequest.setTargetImage(selfiImage);
 
 
                 amazonRekognition = new AmazonRekognitionClient(credentialsProvider);
                 try {
-                    if (amazonRekognition.compareFaces(compareFacesRequest).getFaceMatches().get(0).getSimilarity() > 95) {
+                    if (amazonRekognition.compareFaces(compareFacesRequest).getFaceMatches().get(0).getSimilarity() > 90) {
                         popToast("הפנים מתאימות אל תעודת הזהות ברוך הבא!");
                         startActivity(new Intent(Selfi.this, AfterLogin.class));
                     } else
