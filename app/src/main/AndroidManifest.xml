@@ -26,7 +26,8 @@
 
         <service android:name="org.eclipse.paho.android.service.MqttService" />
 
-        <activity android:name=".Selfi"></activity>
+        <activity android:name=".Selfi" />
+
         <provider
             android:name="android.support.v4.content.FileProvider"
             android:authorities="com.example.android.fileprovider"
@@ -34,8 +35,10 @@
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths"></meta-data>
+                android:resource="@xml/file_paths" />
         </provider>
+
+        <activity android:name=".AfterLogin"></activity>
     </application>
 
 </manifest>

@@ -1,6 +1,7 @@
 package com.example.jeffrey.myproject;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
@@ -42,19 +43,16 @@ import static com.example.jeffrey.myproject.MainActivity.uri;
 public class Selfi extends AppCompatActivity {
 
     private Bitmap selfi,id;
-    Uri image;
+    private Uri image;
     private Image idImage,selfiImage;
-    private     String mCurrentPhotoPath;
     private ProgressBar progressBar;
-
-    AmazonRekognition amazonRekognition;
+    private AmazonRekognition amazonRekognition;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_selfi);
-
     }
 
     private Image setTheImage(Bitmap bitmap) {
@@ -62,7 +60,6 @@ public class Selfi extends AppCompatActivity {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         bitmap = Bitmap.createScaledBitmap(bitmap, bitmap.getWidth()/6, bitmap.getHeight()/6, false);
         bitmap.compress(Bitmap.CompressFormat.PNG,100,stream);
-
         ByteBuffer imageBytes = ByteBuffer.wrap(stream.toByteArray());
         image.withBytes(imageBytes);
         return image;
@@ -90,7 +87,6 @@ public class Selfi extends AppCompatActivity {
     private void setBothImages(){
         selfiImage=setTheImage(selfi);
         idImage=setTheImage(id);
-
         checkIfTheSelfiFitUser();
     }
 
@@ -100,7 +96,7 @@ public class Selfi extends AppCompatActivity {
         takeASelfi();
     }
     private void takeASelfi() {
-         progressBar=findViewById(R.id.progressBar2);
+        progressBar = findViewById(R.id.progressBar2);
         progressBar.setVisibility(View.VISIBLE);
         cameraIntent();
     }
@@ -108,24 +104,25 @@ public class Selfi extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if(resultCode==RESULT_OK&&requestCode==0)
-        {
-            try {
-
-
-                selfi = MediaStore.Images.Media.getBitmap(this.getContentResolver(), image);
-
-
-                id=MediaStore.Images.Media.getBitmap(this.getContentResolver(),uri);
-                setBothImages();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-
-
-
+        if (resultCode == RESULT_OK && requestCode == 0) {
+            checkTheImageSize();
+            setBothImages();
         }
+    }
+
+    private void checkTheImageSize() {
+        try {
+            selfi = MediaStore.Images.Media.getBitmap(this.getContentResolver(), image);
+            if (selfi.getRowBytes() * selfi.getHeight() > 5000000)
+                selfi = MainActivity.getResizedBitmap(selfi);
+
+            id = MediaStore.Images.Media.getBitmap(this.getContentResolver(), uri);
+            if (id.getRowBytes() * id.getHeight() > 5000000)
+                id = MainActivity.getResizedBitmap(id);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     private void checkIfTheSelfiFitUser() {
@@ -133,88 +130,96 @@ public class Selfi extends AppCompatActivity {
             @Override
             public void run() {
 
-                CompareFacesRequest comparedFace=new CompareFacesRequest();
 
                 CognitoCachingCredentialsProvider credentialsProvider = new CognitoCachingCredentialsProvider(
                         getApplicationContext(),
-                        "us-east-1:0aa1be33-7099-4b66-b392-3e2a3309a59b", // Identity pool ID
-                        Regions.US_EAST_1 // Region
+                        "us-east-1:0aa1be33-7099-4b66-b392-3e2a3309a59b",
+                        Regions.US_EAST_1
                 );
 
-                CompareFacesRequest compareFacesRequest=new CompareFacesRequest();
+                CompareFacesRequest compareFacesRequest = new CompareFacesRequest();
                 compareFacesRequest.setSourceImage(idImage);
                 compareFacesRequest.setTargetImage(selfiImage);
 
 
-
                 amazonRekognition = new AmazonRekognitionClient(credentialsProvider);
                 try {
-                    if( amazonRekognition.compareFaces(compareFacesRequest).getFaceMatches().get(0).getSimilarity()>95)
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(Selfi.this,"הפנים מתאימות אל תעודת הזהות ברוך הבא !",Toast.LENGTH_LONG).show();
+                    if (amazonRekognition.compareFaces(compareFacesRequest).getFaceMatches().get(0).getSimilarity() > 95) {
+                        popToast("הפנים מתאימות אל תעודת הזהות ברוך הבא!");
+                        startActivity(new Intent(Selfi.this, AfterLogin.class));
+                    } else
+                        popToast("הפנים לא מתאימות אל תעודת הזהות,נסה שוב.");
 
-                            }
-                        });
-                    else
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(Selfi.this,"הפנים לא מתאימות אל תעודת הזהות",Toast.LENGTH_LONG).show();
-
-
-                        }
-                    });
-
-                }catch (IndexOutOfBoundsException e)
-                {
+                } catch (IndexOutOfBoundsException e) {
                     e.fillInStackTrace();
                     e.printStackTrace();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(Selfi.this,"לא זוהו פנים ,יש להכניס תמונה תקינה של הפנים",Toast.LENGTH_LONG).show();
+                    popToast("לא זוהו פנים ,יש להכניס תמונה תקינה של הפנים");
 
-                        }
-                    });
 
-                }catch (Exception e)
-                {
+                } catch (Exception e) {
                     e.printStackTrace();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(Selfi.this,"קרתה שגיאה לא ידועה",Toast.LENGTH_LONG).show();
 
-                        }
-                    });
+                    popToast("קרתה שגיאה לא ידועה");
+
+
                 }
-                progressBar.setVisibility(View.INVISIBLE);
+                progressBar.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBar.setVisibility(View.INVISIBLE);
+                    }
+                });
 
             }
         }).start();
 
 
-
     }
 
 
 
+    private void popToast(final String text){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(Selfi.this,text,Toast.LENGTH_LONG).show();
+            }
+        });
+
+    }
 
     private File createImageFile() throws IOException {
-        // Create an image file name
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "JPEG_" + timeStamp + "_";
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         File image = File.createTempFile(
-                imageFileName,  /* prefix */
-                ".jpg",         /* suffix */
-                storageDir      /* directory */
+                imageFileName,
+                ".jpg",
+                storageDir
         );
 
-        // Save a file: path for use with ACTION_VIEW intents
-        mCurrentPhotoPath = image.getAbsolutePath();
+
         return image;
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }

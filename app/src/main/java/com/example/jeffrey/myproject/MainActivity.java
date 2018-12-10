@@ -1,19 +1,17 @@
 package com.example.jeffrey.myproject;
 
 import android.Manifest;
-import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.icu.text.AlphabeticIndex;
-import android.media.Image;
 import android.net.Uri;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -25,32 +23,25 @@ import android.widget.Toast;
 import com.amazonaws.auth.CognitoCachingCredentialsProvider;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.rekognition.AmazonRekognitionClient;
-import com.amazonaws.services.rekognition.model.Attribute;
-import com.amazonaws.services.rekognition.model.DetectFacesRequest;
-import com.amazonaws.services.rekognition.model.DetectFacesResult;
 import com.amazonaws.services.rekognition.model.DetectLabelsRequest;
 import com.amazonaws.services.rekognition.model.DetectLabelsResult;
-import com.amazonaws.services.rekognition.model.Label;
-import com.amazonaws.services.rekognition.model.LabelDetection;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.ByteBuffer;
-
-import static android.provider.MediaStore.ACTION_IMAGE_CAPTURE;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
     private ImageButton imageButton;
-
     private Bitmap bitmap;
     private boolean face=false,id=false;
-
-
     private com.amazonaws.services.rekognition.model.Image getAmazonRekognitionImage=new com.amazonaws.services.rekognition.model.Image();
     private  DetectLabelsResult labelsResult;
     public static Uri uri;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,85 +91,90 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
 
-    private void startFaceREconization(){
+    private void startFaceRecognition() {
+        ProgressBar progressBar = findViewById(R.id.progressBar);
+        progressBar.setVisibility(View.VISIBLE);
         new Thread(new Runnable() {
             @Override
             public void run() {
 
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        ProgressBar progressBar=findViewById(R.id.progressBar);
-                        progressBar.setVisibility(View.VISIBLE);
-                    }
-                });
+
+                
                 setTheImage();
                 detectLabel();
+                checkConfidenceForIdAndFace();
 
 
-               try
-               {
-                   for (int i = 0; i < labelsResult.getLabels().size(); i++) {
-                       if (labelsResult.getLabels().get(i).getName().contains("Id Cards") && labelsResult.getLabels().get(i).getConfidence() > 90)
-                           id = true;
-                       else if (labelsResult.getLabels().get(i).getName().contains("Human") && labelsResult.getLabels().get(i).getConfidence() > 90)
-                           face = true;
+                if (face && id) {
+                    galleryAddPic();
+                    popToast("תמונה תקינה");
+                    saveTheUri();
+                    changeTheProgressBarAndImage(true);
+                    try {
 
-                   }
-               }catch (Exception e)
-               {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    startTheNextActivity();
 
-               }
-
-
-               runOnUiThread(new Runnable() {
-                   @Override
-                   public void run() {
-                       if(face&&id)
-                       {
-                           Toast.makeText(MainActivity.this,"תמונה תקינה",Toast.LENGTH_LONG).show();
-                           saveTheUri();
-                           new Thread(new Runnable() {
-                               @Override
-                               public void run() {
-                                   try {
-                                       runOnUiThread(new Runnable() {
-                                           @Override
-                                           public void run() {
-                                               ImageView imageView=findViewById(R.id.ok_not_ok_image);
-                                               imageView.setVisibility(View.VISIBLE);
-                                               ProgressBar progressBar=findViewById(R.id.progressBar);
-                                               imageView.setImageDrawable(getDrawable(R.drawable.ic_check_black_24dp));
-                                               progressBar.setVisibility(View.INVISIBLE);
-                                           }
-                                       });
-
-                                       Thread.sleep(2000);
-                                   } catch (InterruptedException e) {
-                                       e.printStackTrace();
-                                   }
-                                   startTheNextActivity();
-                               }
-                           }).start();
-
-                       }else
-                       {
-                           Toast.makeText(MainActivity.this,"יש לבחור תמונה תקינה של תעדות הזהות",Toast.LENGTH_LONG).show();
-                           ImageView imageView=findViewById(R.id.ok_not_ok_image);
-                           imageView.setVisibility(View.VISIBLE);
-                           imageView.setImageDrawable(getDrawable(R.drawable.ic_error_outline_black_24dp));
-                           ProgressBar progressBar=findViewById(R.id.progressBar);
-                           progressBar.setVisibility(View.INVISIBLE);
-                       }
-
-                   }
-               });
-
-
+                } else {
+                    popToast("יש לבחור תמונה תקינה של תעדות הזהות");
+                    changeTheProgressBarAndImage(false);
+                }
 
 
             }
         }).start();
+    }
+
+    private void popToast(final String s) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MainActivity.this,s , Toast.LENGTH_LONG).show();
+
+            }
+        });
+
+    }
+
+    private void changeTheProgressBarAndImage(final boolean ok) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                ImageView imageView=findViewById(R.id.ok_not_ok_image);
+                ProgressBar progressBar=findViewById(R.id.progressBar);
+
+                imageView.setVisibility(View.VISIBLE);
+
+                progressBar.setVisibility(View.INVISIBLE);
+
+                if(ok)
+                    imageView.setImageDrawable(getDrawable(R.drawable.ic_check_black_24dp));
+                else
+                    imageView.setImageDrawable(getDrawable(R.drawable.ic_error_outline_black_24dp));
+            }
+        });
+
+        
+    }
+
+    private void checkConfidenceForIdAndFace() {
+        try
+        {
+            for (int i = 0; i < labelsResult.getLabels().size(); i++) {
+                if (labelsResult.getLabels().get(i).getName().contains("Id Cards") && labelsResult.getLabels().get(i).getConfidence() > 90)
+                    id = true;
+                else if (labelsResult.getLabels().get(i).getName().contains("Human") && labelsResult.getLabels().get(i).getConfidence() > 90)
+                    face = true;
+
+            }
+        }catch (Exception e)
+        {
+
+        }
+
     }
 
     private void detectLabel() {
@@ -199,6 +195,21 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    public static Bitmap getResizedBitmap(Bitmap image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        float bitmapRatio = (float)width / (float) height;
+        if (bitmapRatio > 1) {
+            width = 1000;
+            height = (int) (width / bitmapRatio);
+        } else {
+            height = 1000;
+            width = (int) (height * bitmapRatio);
+
+        }
+        return Bitmap.createScaledBitmap(image, width, height, true);
+    }
 
     private void setTheImage() {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -212,23 +223,8 @@ public class MainActivity extends AppCompatActivity {
     public void onClick(View view)
     {
 
+        cameraIntent();
 
-        Intent  pickImage = new Intent(Intent.ACTION_PICK);
-        pickImage.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false);
-        pickImage.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        pickImage.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        pickImage.setType("image/*");
-
-
-        try
-        {
-
-            startActivityForResult(pickImage, 0);
-
-        }catch (Exception e)
-        {
-
-        }
     }
 
     @Override
@@ -236,14 +232,19 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if(resultCode==RESULT_OK&&requestCode==0)
         {
-            uri=data.getData();
+
+
 
 
 
 
             try {
 
-                 bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), data.getData());
+
+
+                 bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), uri);
+                 if(bitmap.getRowBytes() * bitmap.getHeight()>5000000)
+                bitmap=getResizedBitmap(bitmap);
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -254,11 +255,54 @@ public class MainActivity extends AppCompatActivity {
                     imageButton.setImageBitmap(bitmap);
 
 
-                    startFaceREconization();
+                    startFaceRecognition();
                 }
             });
 
         }
+    }
+
+
+    private void cameraIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+
+            }
+            if (photoFile != null) {
+                uri = FileProvider.getUriForFile(this,
+                        "com.example.android.fileprovider",
+                        photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+                startActivityForResult(takePictureIntent, 0);
+            }
+        }
+    }
+
+    private File createImageFile() throws IOException {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,
+                ".jpg",
+                storageDir
+        );
+
+
+        return image;
+    }
+
+
+    private void galleryAddPic() {
+        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        File f = new File(uri.getPath());
+        Uri contentUri = Uri.fromFile(f);
+        mediaScanIntent.setData(contentUri);
+        this.sendBroadcast(mediaScanIntent);
     }
 
     private void saveTheUri() {
